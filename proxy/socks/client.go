@@ -82,7 +82,9 @@ func (c *Client) Process(ctx context.Context, link *transport.Link, dialer inter
 			newError("failed to closed connection").Base(err).WriteToLog(session.ExportIDToError(ctx))
 		}
 	}()
-
+	if rl, ok := common.LimiterMapper["socks"]; ok {
+		conn = common.LimitConnReader(conn, ctx, rl)
+	}
 	p := c.policyManager.ForLevel(0)
 
 	request := &protocol.RequestHeader{

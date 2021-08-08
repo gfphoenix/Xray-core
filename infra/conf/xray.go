@@ -11,6 +11,7 @@ import (
 	"github.com/xtls/xray-core/app/dispatcher"
 	"github.com/xtls/xray-core/app/proxyman"
 	"github.com/xtls/xray-core/app/stats"
+	"github.com/xtls/xray-core/common"
 	"github.com/xtls/xray-core/common/serial"
 	core "github.com/xtls/xray-core/core"
 	"github.com/xtls/xray-core/transport/internet/xtls"
@@ -271,6 +272,7 @@ type OutboundDetourConfig struct {
 	StreamSetting *StreamConfig    `json:"streamSettings"`
 	ProxySettings *ProxyConfig     `json:"proxySettings"`
 	MuxSettings   *MuxConfig       `json:"mux"`
+	RateLimit     uint64           `json:"rate_limit"`
 }
 
 func (c *OutboundDetourConfig) checkChainProxyConfig() error {
@@ -532,6 +534,9 @@ func (c *Config) Build() (*core.Config, error) {
 	if err := PostProcessConfigureFile(c); err != nil {
 		return nil, err
 	}
+	for k, _ := range common.LimiterMapper {
+		delete(common.LimiterMapper, k)
+	}
 
 	config := &core.Config{
 		App: []*serial.TypedMessage{
@@ -669,6 +674,9 @@ func (c *Config) Build() (*core.Config, error) {
 			return nil, err
 		}
 		config.Outbound = append(config.Outbound, oc)
+		if rawOutboundConfig.RateLimit > 1 {
+			common.RegisterRateLimited(rawOutboundConfig.Protocol, rawOutboundConfig.RateLimit)
+		}
 	}
 
 	return config, nil

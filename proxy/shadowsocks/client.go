@@ -77,6 +77,9 @@ func (c *Client) Process(ctx context.Context, link *transport.Link, dialer inter
 	newError("tunneling request to ", destination, " via ", server.Destination()).WriteToLog(session.ExportIDToError(ctx))
 
 	defer conn.Close()
+	if rl, ok := common.LimiterMapper["shadowsocks"]; ok {
+		conn = common.LimitConnReader(conn, ctx, rl)
+	}
 
 	request := &protocol.RequestHeader{
 		Version: Version,

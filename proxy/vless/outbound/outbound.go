@@ -93,7 +93,9 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer inte
 		return newError("failed to find an available destination").Base(err).AtWarning()
 	}
 	defer conn.Close()
-
+	if rl, ok := common.LimiterMapper["vless"]; ok {
+		conn = common.LimitConnReader(conn, ctx, rl)
+	}
 	iConn := conn
 	statConn, ok := iConn.(*stat.CounterConnection)
 	if ok {

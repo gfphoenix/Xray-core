@@ -81,7 +81,9 @@ func (c *Client) Process(ctx context.Context, link *transport.Link, dialer inter
 	newError("tunneling request to ", destination, " via ", server.Destination()).WriteToLog(session.ExportIDToError(ctx))
 
 	defer conn.Close()
-
+	if rl, ok := common.LimiterMapper["trojan"]; ok {
+		conn = common.LimitConnReader(conn, ctx, rl)
+	}
 	iConn := conn
 	statConn, ok := iConn.(*stat.CounterConnection)
 	if ok {
