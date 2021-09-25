@@ -142,7 +142,7 @@ func (s *clientSessions) openConnection(destAddr net.Addr, config *Config, tlsCo
 	sessions = removeInactiveSessions(sessions)
 
 	rawConn, err := internet.ListenSystemPacket(context.Background(), &net.UDPAddr{
-		IP:   []byte{0, 0, 0, 0},
+		IP:   internet.GetOutgoingIP(),
 		Port: 0,
 	}, sockopt)
 	if err != nil {
