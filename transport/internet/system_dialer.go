@@ -2,6 +2,8 @@ package internet
 
 import (
 	"context"
+	stdnet "net"
+	"os"
 	"syscall"
 	"time"
 
@@ -46,15 +48,39 @@ func resolveSrcAddr(network net.Network, src net.Address) net.Addr {
 func hasBindAddr(sockopt *SocketConfig) bool {
 	return sockopt != nil && len(sockopt.BindAddress) > 0 && sockopt.BindPort > 0
 }
+var bindAddress net.IP
+func GetOutgoingIP() net.IP {
+	if bindAddress != nil {
+		return bindAddress
+	}
+	value := os.Getenv("BIND_ADDRESS")
+	ip := net.ParseIP(value)
+	if (len(ip) == net.IPv4len && !ip.Equal(stdnet.IPv4zero)) || (len(ip) == net.IPv6len && !ip.Equal(stdnet.IPv6zero)) {
+		bindAddress = ip
+		return ip
+	}
+	raddr, err := net.ResolveUDPAddr("udp", "1.1.1.1:53")
+	if err == nil {
+		conn, err := net.DialUDP("udp", nil, raddr)
+		if err == nil {
+			defer conn.Close()
+			bindAddress = conn.LocalAddr().(*net.UDPAddr).IP
+			return bindAddress
+		}
+	}
+	return net.AnyIP.IP()
+}
 
 func (d *DefaultSystemDialer) Dial(ctx context.Context, src net.Address, dest net.Destination, sockopt *SocketConfig) (net.Conn, error) {
 	newError("dialing to " + dest.String()).AtDebug().WriteToLog()
-
+	if src == nil {
+		src = net.IPAddress(GetOutgoingIP())
+	}
 	if dest.Network == net.Network_UDP && !hasBindAddr(sockopt) {
 		srcAddr := resolveSrcAddr(net.Network_UDP, src)
 		if srcAddr == nil {
 			srcAddr = &net.UDPAddr{
-				IP:   []byte{0, 0, 0, 0},
+				IP:   src.IP(),
 				Port: 0,
 			}
 		}
